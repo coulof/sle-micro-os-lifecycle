@@ -1,0 +1,9 @@
+#cloud-config
+# Append to the Harvester machine pool "User Data" in Rancher.
+# Goal: the node must NOT patch/reboot itself; SUC Plans are the only OS lifecycle owner.
+# Registration (SCC regcode) is intentionally NOT here: inject it from a secret-backed
+# template, never commit it to Git.
+runcmd:
+  - systemctl disable --now transactional-update.timer || true
+  - systemctl disable --now rebootmgr.service || true
+  - systemctl enable health-checker.service || true

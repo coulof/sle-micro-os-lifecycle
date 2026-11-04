@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: os-inventory
+spec:
+  selector:
+    matchLabels: {app: os-inventory}
+  template:
+    metadata:
+      labels: {app: os-inventory}
+    spec:
+      serviceAccountName: os-inventory
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: inventory
+          image: dp.apps.rancher.io/containers/kubectl:1.37.2
+          command: ["/bin/sh", "/scripts/inventory.sh"]
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+            - {name: LABEL_PREFIX, value: platform.example.com}
+          securityContext:
+            runAsUser: 0                      # image defaults to uid 1000; chroot needs root
+            capabilities: {add: [SYS_CHROOT]}
+          resources:
+            requests: {cpu: 5m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            - {name: host, mountPath: /host, readOnly: true}
+            - {name: scripts, mountPath: /scripts, readOnly: true}
+      volumes:
+        - name: host
+          hostPath: {path: /}
+        - name: scripts
+          configMap: {name: os-scripts}

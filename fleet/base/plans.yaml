@@ -1,0 +1,118 @@
+# Ordered in-place OS patching: etcd -> control-plane -> workers.
+# spec.version = release id (patched per wave by overlays). Bump it = new rollout.
+#
+# Script bodies are not written here: kustomization.yaml copies them from the os-scripts
+# ConfigMap into the UPGRADE_SCRIPT / WAIT_SCRIPT env values, so a script change also
+# changes the Plan hash.
+#   upgrade: bci-micro (root; needs only sh, mkdir, chroot). Script runs in the host chroot.
+#   prepare: kubectl image (uid 1000 is fine for API reads).
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: os-patch-etcd
+spec:
+  version: "0000.00-0"
+  concurrency: 1
+  nodeSelector:
+    matchExpressions:
+      - {key: node-role.kubernetes.io/etcd, operator: In, values: ["true"]}
+  serviceAccountName: os-upgrade
+  imagePullSecrets:
+    - name: dp-apps-rancher-io               # created out-of-band, never in Git
+  tolerations:
+    - operator: Exists
+  cordon: true
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    timeout: 900s
+  upgrade:
+    image: registry.suse.com/bci/bci-micro:15.7
+    envs:
+      - {name: MODE, value: "up"}             # or "patch" for security-only
+      - {name: UPGRADE_SCRIPT, value: ""}
+    command: ["/bin/sh", "-c"]
+    args:
+      - >-
+        mkdir -p /host/var/lib/os-upgrade/bin &&
+        printf '%s\n' "$UPGRADE_SCRIPT" > /host/var/lib/os-upgrade/bin/upgrade.sh &&
+        exec chroot /host /bin/sh /var/lib/os-upgrade/bin/upgrade.sh
+---
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: os-patch-cp
+spec:
+  version: "0000.00-0"
+  concurrency: 1
+  nodeSelector:
+    matchExpressions:
+      - {key: node-role.kubernetes.io/control-plane, operator: In, values: ["true"]}
+      - {key: node-role.kubernetes.io/etcd, operator: DoesNotExist}
+  serviceAccountName: os-upgrade
+  imagePullSecrets:
+    - name: dp-apps-rancher-io               # created out-of-band, never in Git
+  tolerations:
+    - operator: Exists
+  prepare:
+    image: dp.apps.rancher.io/containers/kubectl:1.37.2
+    envs:
+      - {name: WAIT_SCRIPT, value: ""}
+    command: ["/bin/sh", "-c", 'exec /bin/sh -c "$WAIT_SCRIPT" wait-plan "$@"', "prepare"]
+    args: ["os-patch-etcd", "node-role.kubernetes.io/etcd=true"]
+  cordon: true
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    timeout: 900s
+  upgrade:
+    image: registry.suse.com/bci/bci-micro:15.7
+    envs:
+      - {name: MODE, value: "up"}             # or "patch" for security-only
+      - {name: UPGRADE_SCRIPT, value: ""}
+    command: ["/bin/sh", "-c"]
+    args:
+      - >-
+        mkdir -p /host/var/lib/os-upgrade/bin &&
+        printf '%s\n' "$UPGRADE_SCRIPT" > /host/var/lib/os-upgrade/bin/upgrade.sh &&
+        exec chroot /host /bin/sh /var/lib/os-upgrade/bin/upgrade.sh
+---
+apiVersion: upgrade.cattle.io/v1
+kind: Plan
+metadata:
+  name: os-patch-workers
+spec:
+  version: "0000.00-0"
+  concurrency: 2                               # tune per cluster size / PDBs
+  nodeSelector:
+    matchExpressions:
+      - {key: node-role.kubernetes.io/control-plane, operator: DoesNotExist}
+      - {key: node-role.kubernetes.io/etcd, operator: DoesNotExist}
+  serviceAccountName: os-upgrade
+  imagePullSecrets:
+    - name: dp-apps-rancher-io               # created out-of-band, never in Git
+  prepare:
+    image: dp.apps.rancher.io/containers/kubectl:1.37.2
+    envs:
+      - {name: WAIT_SCRIPT, value: ""}
+    command: ["/bin/sh", "-c", 'exec /bin/sh -c "$WAIT_SCRIPT" wait-plan "$@"', "prepare"]
+    args: ["os-patch-cp", "node-role.kubernetes.io/control-plane=true,!node-role.kubernetes.io/etcd"]
+  cordon: true
+  drain:
+    force: true
+    ignoreDaemonSets: true
+    deleteEmptydirData: true
+    timeout: 900s
+  upgrade:
+    image: registry.suse.com/bci/bci-micro:15.7
+    envs:
+      - {name: MODE, value: "up"}             # or "patch" for security-only
+      - {name: UPGRADE_SCRIPT, value: ""}
+    command: ["/bin/sh", "-c"]
+    args:
+      - >-
+        mkdir -p /host/var/lib/os-upgrade/bin &&
+        printf '%s\n' "$UPGRADE_SCRIPT" > /host/var/lib/os-upgrade/bin/upgrade.sh &&
+        exec chroot /host /bin/sh /var/lib/os-upgrade/bin/upgrade.sh

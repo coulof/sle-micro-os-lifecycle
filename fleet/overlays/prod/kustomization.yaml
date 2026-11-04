@@ -1,0 +1,11 @@
+# Promote to prod only after canary is complete + fingerprint-converged (tools/gate.sh).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target: {group: upgrade.cattle.io, kind: Plan}
+    patch: |-
+      - op: replace
+        path: /spec/version
+        value: "2026.44-1"

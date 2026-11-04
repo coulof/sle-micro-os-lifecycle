@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cattle-system
+resources:
+  - rbac.yaml
+  - inventory.yaml
+  - plans.yaml
+configMapGenerator:
+  - name: os-scripts
+    files:
+      - scripts/upgrade.sh
+      - scripts/wait-plan.sh
+      - scripts/inventory.sh
+# Plans cannot mount a ConfigMap, so copy the script text into their env values.
+replacements:
+  - source: {kind: ConfigMap, name: os-scripts, fieldPath: data.upgrade\.sh}
+    targets:
+      - select: {kind: Plan}
+        fieldPaths:
+          - spec.upgrade.envs.[name=UPGRADE_SCRIPT].value
+  - source: {kind: ConfigMap, name: os-scripts, fieldPath: data.wait-plan\.sh}
+    targets:
+      - select: {kind: Plan}
+        reject: [{name: os-patch-etcd}]    # first in line, no prepare step
+        fieldPaths:
+          - spec.prepare.envs.[name=WAIT_SCRIPT].value

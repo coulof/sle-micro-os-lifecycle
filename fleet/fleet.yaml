@@ -1,0 +1,12 @@
+# Fleet bundle, delivered from Rancher (local) to downstream clusters.
+# Downstream clusters opt in with the Rancher cluster label os-lifecycle/wave=<canary|prod>.
+defaultNamespace: cattle-system
+targetCustomizations:
+  - name: canary
+    clusterSelector:
+      matchLabels: {os-lifecycle/wave: canary}
+    kustomize: {dir: overlays/canary}
+  - name: prod
+    clusterSelector:
+      matchLabels: {os-lifecycle/wave: prod}
+    kustomize: {dir: overlays/prod}

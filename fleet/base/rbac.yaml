@@ -1,0 +1,61 @@
+# SA for SUC job pods: drain (SUC injects a kubectl drain init container using this SA)
+# + read plans/nodes for the wait-plan prepare step.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: os-upgrade
+imagePullSecrets:
+  - name: dp-apps-rancher-io      # created out-of-band, never in Git
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: os-upgrade
+rules:
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list, watch, patch, update]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, delete]
+  - apiGroups: [""]
+    resources: [pods/eviction]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [daemonsets, replicasets, statefulsets]
+    verbs: [get, list]
+  - apiGroups: [upgrade.cattle.io]
+    resources: [plans]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: os-upgrade
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: os-upgrade}
+subjects:
+  - {kind: ServiceAccount, name: os-upgrade, namespace: cattle-system}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: os-inventory
+imagePullSecrets:
+  - name: dp-apps-rancher-io      # created out-of-band, never in Git
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: os-inventory
+rules:
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: os-inventory
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: os-inventory}
+subjects:
+  - {kind: ServiceAccount, name: os-inventory, namespace: cattle-system}
