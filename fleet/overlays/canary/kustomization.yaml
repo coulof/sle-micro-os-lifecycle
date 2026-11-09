@@ -8,4 +8,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/version
-        value: "2026.45-1"
+        value: "2026.46-1"
