@@ -1,0 +1,96 @@
+# traefik/whoami: plain-text "who answered" page for the SL Micro lifecycle demo.
+# Rancher API proxy:
+#   https://op-prg2.openplatform.suse.com/k8s/clusters/c-m-85lcdpxh/api/v1/namespaces/whoami/services/http:whoami:80/proxy/
+# Traefik / VIP: http://<VIP>/  (host-less Ingress: remove other catch-all Ingresses first)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: whoami
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami
+  namespace: whoami
+  labels: {app.kubernetes.io/name: whoami}
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app.kubernetes.io/name: whoami}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: whoami}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: {app.kubernetes.io/name: whoami}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: whoami
+          image: traefik/whoami:v1.10
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+          # "Name:" line in the output = the node serving the request
+          args: ["--port", "8080", "--name", "$(NODE_NAME)"]
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 2
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              sleep: {seconds: 5}          # let endpoints update before the pod stops
+          resources:
+            requests: {cpu: 5m, memory: 8Mi}
+            limits: {memory: 32Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+  namespace: whoami
+spec:
+  selector: {app.kubernetes.io/name: whoami}
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: whoami
+  namespace: whoami
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: whoami}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: whoami
+  namespace: whoami
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: whoami
+                port: {number: 80}
