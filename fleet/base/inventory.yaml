@@ -19,7 +19,7 @@ spec:
           env:
             - name: NODE_NAME
               valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
-            - {name: LABEL_PREFIX, value: platform.example.com}
+            - {name: LABEL_PREFIX, value: os-lifecycle}
           securityContext:
             runAsUser: 0                      # image defaults to uid 1000; chroot needs root
             capabilities: {add: [SYS_CHROOT]}

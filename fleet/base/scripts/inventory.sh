@@ -2,7 +2,7 @@
 # DaemonSet loop: publish OS facts as node labels for drift detection.
 # Independent of the upgrade path, so it also catches out-of-band changes.
 set -eu
-PREFIX="${LABEL_PREFIX:-platform.example.com}"
+PREFIX="${LABEL_PREFIX:-os-lifecycle}"
 INTERVAL="${INTERVAL:-600}"
 : "${NODE_NAME:?}"
 

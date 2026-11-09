@@ -31,7 +31,7 @@ shellcheck fleet/base/scripts/*.sh tools/gate.sh   # if installed
 - Scripts reach Plans through `replacements` in `fleet/base/kustomization.yaml`, not a mounted file. Rebuild both overlays after any change and confirm `UPGRADE_SCRIPT` and `WAIT_SCRIPT` are filled. `os-patch-etcd` has no `prepare` and is rejected from the `WAIT_SCRIPT` replacement; keep it that way.
 - Image references (`dp.apps.rancher.io/containers/kubectl`, `bci-micro`) repeat across the three Plans and `inventory.yaml`. Change them together.
 - Plan ordering relies on `wait-plan.sh` and its selector arguments. If you change a plan's `nodeSelector`, update the matching selector in the next plan's `prepare.args` and in `plan_selector()` in `gate.sh`.
-- The label prefix (`platform.example.com`) appears in `inventory.yaml`, `inventory.sh` and `gate.sh`. Keep them equal.
+- The label prefix (`os-lifecycle`) appears in `inventory.yaml`, `inventory.sh` and `gate.sh`. Keep them equal.
 - Plans carry the base `spec.version` `0000.00-0`. Only overlays set the real release. Do not set a real version in base.
 - Prod must never run a newer release than canary. When editing overlays, check both values.
 - Never write an SCC registration code, kubeconfig or token into any file here. `cloud-init/` is intentionally free of the regcode.

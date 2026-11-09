@@ -6,7 +6,7 @@
 #       -> runs check, then sets spec.kubernetesVersion on the Rancher provisioning Cluster
 set -eu
 NS=cattle-system
-PREFIX="${LABEL_PREFIX:-platform.example.com}"
+PREFIX="${LABEL_PREFIX:-os-lifecycle}"
 
 plan_selector() {
   case "$1" in

@@ -2,7 +2,7 @@
 
 In-place OS patching for SUSE Linux Micro nodes in Rancher-provisioned RKE2/K3s clusters (Harvester machine pools). Rancher's Fleet ships the patch plans, the System Upgrade Controller (SUC) runs them, and a gate script decides when the cluster is safe for a Kubernetes upgrade.
 
-Status: prototype. The label prefix (`platform.example.com`) is a placeholder. Nothing here has been run against a live cluster.
+Status: prototype. Nothing here has been run against a live cluster.
 
 ## How it works
 
@@ -33,7 +33,7 @@ tools/        gate.sh
 2. Add `cloud-init/harvester-machine-pool-userdata.yaml` to the machine pool's User Data in Rancher. It disables `transactional-update.timer` and `rebootmgr` so the Plans are the only thing patching nodes. Register nodes with SCC through a secret-backed template. Do not put the registration code in Git.
 3. Point a Fleet GitRepo on the Rancher `local` cluster at `fleet/`.
 4. Label downstream clusters in Rancher with `os-lifecycle/wave=canary` or `os-lifecycle/wave=prod`.
-5. Set `LABEL_PREFIX` in `fleet/base/inventory.yaml` and in your shell when running `gate.sh`. The default is `platform.example.com`.
+5. Set `LABEL_PREFIX` in `fleet/base/inventory.yaml` and in your shell when running `gate.sh`. The default is `os-lifecycle`.
 
 ## Releasing
 
